@@ -1,2 +1,3 @@
-# Opcional: suporte a arrastar e soltar na interface Tkinter
-tkinterdnd2>=0.4.2
+# The application uses only the Python standard library.
+# tkinterdnd2 is optional; install it only if drag-and-drop is wanted:
+# python -m pip install -r requirements-optional.txt

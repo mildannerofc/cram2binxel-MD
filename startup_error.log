@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "C:\Users\Lucas\Downloads\cram2binxel_MD_STARTUP_FIXED\cram2binxel_MD\cram2binxel_MD.py", line 7, in <module>
+    from src.cram2binxel_md import main
+  File "C:\Users\Lucas\Downloads\cram2binxel_MD_STARTUP_FIXED\cram2binxel_MD\src\cram2binxel_md.py", line 3
+    from __future__ import annotations
+SyntaxError: future feature annotations is not defined
