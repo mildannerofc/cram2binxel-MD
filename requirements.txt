@@ -1,0 +1,2 @@
+# Opcional: suporte a arrastar e soltar na interface Tkinter
+tkinterdnd2>=0.4.2
