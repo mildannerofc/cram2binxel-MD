@@ -1,3 +1,5 @@
+<img width="1636" height="374" alt="image" src="https://github.com/user-attachments/assets/82f48ea1-1dd4-4b23-8ce4-0df75d3dc969" />
+
 # cram2binxel_MD
 
 Conversor de dumps CRAM do Mega Drive / Genesis para paletas `.pal` RGB24 compatíveis com o Binxelview.
