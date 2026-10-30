@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
-"""Mega Drive / Genesis CRAM dump to Binxelview RGB24 palette."""
+"""Mega Drive / Genesis and Master System CRAM dumps to Binxelview RGB24 palette."""
+from __future__ import annotations
+
 import os
 import sys
 import traceback
@@ -19,9 +21,11 @@ except Exception:  # tkinterdnd2 can fail for reasons other than ImportError
 COLORS_PER_LINE = 16
 BYTES_PER_COLOR = 2
 BYTES_PER_LINE = COLORS_PER_LINE * BYTES_PER_COLOR
+SMS_BYTES_PER_COLOR = 1
+SMS_BYTES_PER_LINE = COLORS_PER_LINE * SMS_BYTES_PER_COLOR
 
 
-def reverse_bits(value, width):
+def reverse_bits(value: int, width: int) -> int:
     result = 0
     for _ in range(width):
         result = (result << 1) | (value & 1)
@@ -29,7 +33,7 @@ def reverse_bits(value, width):
     return result
 
 
-def inspect_cram(data):
+def inspect_cram(data: bytes) -> dict:
     if not data:
         raise ValueError("O arquivo de entrada está vazio.")
     if len(data) % BYTES_PER_COLOR:
@@ -48,7 +52,7 @@ def inspect_cram(data):
     }
 
 
-def decode_color(word):
+def decode_color(word: int) -> tuple[int, int, int]:
     # Mega Drive CRAM word: 0000 BBB0 GGG0 RRR0
     r3 = (word >> 1) & 7
     g3 = (word >> 5) & 7
@@ -56,7 +60,7 @@ def decode_color(word):
     return tuple((v * 255 + 3) // 7 for v in (r3, g3, b3))
 
 
-def decode_line(line_data, byte_order="big"):
+def decode_line(line_data: bytes, byte_order: str = "big") -> list[tuple[int, int, int]]:
     if byte_order not in ("big", "little"):
         raise ValueError("A ordem dos bytes deve ser 'big' ou 'little'.")
     if len(line_data) % 2:
@@ -69,7 +73,7 @@ def decode_line(line_data, byte_order="big"):
     ]
 
 
-def reorder_binxelview_line(colors):
+def reorder_binxelview_line(colors: list[tuple[int, int, int]]) -> list[tuple[int, int, int]]:
     # Established 16-index arrangement: 0,8,4,12,2,10,6,14,1,9,5,13,3,11,7,15.
     # A partial last line is kept in source order (there are missing index slots).
     if len(colors) != COLORS_PER_LINE:
@@ -80,9 +84,31 @@ def reorder_binxelview_line(colors):
     return ordered
 
 
-def convert_cram(data, byte_order="big", selected_line=0,
-                 export_mode="selected"):
-    info = inspect_cram(data)
+def inspect_cram(data: bytes, system: str = "md") -> dict:
+    if system not in ("md", "sms"):
+        raise ValueError("Sistema inválido.")
+    bpc = BYTES_PER_COLOR if system == "md" else SMS_BYTES_PER_COLOR
+    if not data:
+        raise ValueError("O arquivo de entrada está vazio.")
+    if len(data) % bpc:
+        raise ValueError(f"O arquivo tem {len(data)} bytes; tamanho incompatível com {system.upper()} CRAM.")
+    total_colors = len(data) // bpc
+    complete_lines, partial_colors = divmod(total_colors, COLORS_PER_LINE)
+    return {"bytes": len(data), "colors": total_colors, "complete_lines": complete_lines,
+            "partial_colors": partial_colors, "total_lines": complete_lines + bool(partial_colors)}
+
+
+def decode_sms_color(value: int) -> tuple[int, int, int]:
+    # Master System CRAM: %00BBGGRR, 2 bits per channel.
+    r = value & 0x03
+    g = (value >> 2) & 0x03
+    b = (value >> 4) & 0x03
+    return tuple(v * 85 for v in (r, g, b))
+
+
+def convert_cram(data: bytes, byte_order: str = "big", selected_line: int = 0,
+                 export_mode: str = "selected", system: str = "md") -> bytes:
+    info = inspect_cram(data, system)
     if export_mode not in ("selected", "all"):
         raise ValueError("Modo de exportação inválido.")
     if export_mode == "selected":
@@ -92,22 +118,29 @@ def convert_cram(data, byte_order="big", selected_line=0,
     else:
         line_indices = range(info["total_lines"])
 
+    bpc = BYTES_PER_COLOR if system == "md" else SMS_BYTES_PER_COLOR
+    bpl = COLORS_PER_LINE * bpc
     output = bytearray()
     for line_index in line_indices:
-        start = line_index * BYTES_PER_LINE
-        end = min(start + BYTES_PER_LINE, len(data))
-        colors = decode_line(data[start:end], byte_order)
+        start = line_index * bpl
+        end = min(start + bpl, len(data))
+        line = data[start:end]
+        if system == "md":
+            colors = decode_line(line, byte_order)
+        else:
+            colors = [decode_sms_color(value) for value in line]
         for red, green, blue in reorder_binxelview_line(colors):
             output.extend((red, green, blue))
     return bytes(output)
 
 
-def convert_file(input_path, output_path, byte_order="big",
-                 selected_line=0, export_mode="selected"):
+def convert_file(input_path: str, output_path: str, byte_order: str = "big",
+                 selected_line: int = 0, export_mode: str = "selected",
+                 system: str = "md") -> tuple[str, int, dict]:
     with open(input_path, "rb") as stream:
         data = stream.read()
-    info = inspect_cram(data)
-    palette = convert_cram(data, byte_order, selected_line, export_mode)
+    info = inspect_cram(data, system)
+    palette = convert_cram(data, byte_order, selected_line, export_mode, system)
     destination = os.path.abspath(os.path.expanduser(output_path))
     parent = os.path.dirname(destination)
     if parent:
@@ -135,7 +168,7 @@ class ConverterApp:
             self.dnd_warning = "Arrastar e soltar opcional não está disponível."
 
         self.root.title("cram2binxel_MD — CRAM to Binxelview")
-        self.root.geometry("790x535")
+        self.root.geometry("820x555")
         self.root.minsize(700, 490)
         self.root.configure(padx=18, pady=16)
         self.detected_info = None
@@ -181,6 +214,9 @@ class ConverterApp:
         options.pack(fill="x")
         top = tk.Frame(options)
         top.pack(fill="x")
+        tk.Label(top, text="System:").pack(side="left")
+        self.system = tk.StringVar(value="md")
+        tk.OptionMenu(top, self.system, "md", "sms", command=lambda _v: self.detect(show_errors=False)).pack(side="left", padx=(6, 12))
         tk.Label(top, text="Byte order:").pack(side="left")
         self.byte_order = tk.StringVar(value="big")
         tk.OptionMenu(top, self.byte_order, "big", "little").pack(side="left", padx=(6, 16))
@@ -256,7 +292,7 @@ class ConverterApp:
         try:
             with open(source, "rb") as stream:
                 data = stream.read()
-            info = inspect_cram(data)
+            info = inspect_cram(data, self.system.get())
             self.detected_info = info
             labels = []
             for row in range(info["total_lines"]):
@@ -310,7 +346,7 @@ class ConverterApp:
         try:
             mode = self.export_mode.get()
             selected = int(self.line_var.get().split()[0]) - 1
-            output, color_count, info = convert_file(source, destination, self.byte_order.get(), selected, mode)
+            output, color_count, info = convert_file(source, destination, self.byte_order.get(), selected, mode, self.system.get())
             self.status.config(text=f"Concluído: {info['total_lines']} linha(s); {color_count} cores exportadas para {output}")
             messagebox.showinfo("Conversão concluída", f"{info['colors']} cores detectadas em {info['total_lines']} linha(s).\n"
                                 f"{color_count} cores exportadas.\n\n{output}")

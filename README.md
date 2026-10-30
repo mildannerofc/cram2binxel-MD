@@ -2,14 +2,14 @@
 
 # CRAM to Binxelview Converter
 
-Conversor de dumps CRAM do Mega Drive / Genesis para paletas `.pal` RGB24 compatíveis com o Binxelview.
+Conversor de dumps CRAM do Mega Drive / Genesis e Master System para paletas `.pal` RGB24 compatíveis com o Binxelview.
 
 ## Recursos
 
 - Entrada por caminho digitado ou seleção de arquivo.
 - Campo de saída editável, com botão para escolher o destino.
 - Arrastar e soltar (opcional, requer `tkinterdnd2`).
-- Dumps CRAM de 16 cores (32 bytes) e 256 cores (512 bytes).
+- Mega Drive / Genesis: CRAM de 16 cores (32 bytes) e 256 cores (512 bytes), com seleção de byte order.\n- Master System: CRAM de 16 cores (16 bytes) ou múltiplos blocos de 16 cores, no formato `%00BBGGRR` (1 byte por cor).
 - Escolha da ordem dos bytes (`big` ou `little`).
 - Exportação RGB24 sem cabeçalho.
 - Reordenação de índices por inversão de bits, conforme a organização implementada nesta versão.
@@ -47,7 +47,7 @@ python src/cram2binxel_md.py
 | Cores | Tamanho do CRAM | Tamanho da saída RGB24 |
 |---:|---:|---:|
 | 16 | 32 bytes | 48 bytes |
-| 256 | 512 bytes | 768 bytes |
+| 256 (Mega Drive) | 512 bytes | 768 bytes |\n| 16 (Master System) | 16 bytes | 48 bytes |
 
 O arquivo de saída contém apenas triplas RGB (`R`, `G`, `B`), sem cabeçalho.
 
@@ -66,3 +66,4 @@ cram2binxel_MD/
 ## Limitações
 
 Este programa converte dumps CRAM brutos; não extrai automaticamente CRAM de ROMs. A opção de ordem dos bytes altera a leitura das palavras de 16 bits, não a sequência de canais RGB.
+\n## Master System\n\nSelecione `sms` em **System**. Cada byte é interpretado como `%00BBGGRR`: bits 0–1 = vermelho, 2–3 = verde e 4–5 = azul. Cada canal de 2 bits é expandido para RGB24 pelos níveis 0, 85, 170 e 255. A opção de byte order não se aplica ao SMS, pois cada cor ocupa apenas um byte.\n
